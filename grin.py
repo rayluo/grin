@@ -53,14 +53,16 @@ class GreenInput(icelib.gui.Application):
     Label(parent, text="Candidates:", anchor=W).pack(side=TOP, fill=X)
     self.candidates = Listbox(parent)
     self.candidates.pack(expand=1, fill=BOTH)
-    self.candidates['font'] = self.candidates['font'].split()[0] + ' 18'
+    try: self.candidates['font'] = self.candidates['font'].split()[0] + ' 18'
+    except: pass # Happens in python2.5
 
     Label(parent, text="", anchor=W).pack(side=TOP, fill=X) # Separator
 
     Label(parent, text="Result (Select all, and press CTRL+C to copy, then CTRL+V to other software):", anchor=W).pack(side=TOP, fill=X)
     self.output = Text(parent, width=60, height=4)
     self.output.pack(fill=BOTH, expand=1)
-    self.output['font'] = self.output['font'].split()[0] + ' 18'
+    try: self.output['font'] = self.output['font'].split()[0] + ' 18'
+    except: pass # Happens in python2.5
 
     Button(parent, text='Reset', anchor=W, command=self.reset).pack(side=BOTTOM)
 
