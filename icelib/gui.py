@@ -1,4 +1,4 @@
-# coding: gb2312
+# coding: utf-8
 from Tkinter import *
 from Tix import *
 import os,time,types,sys
@@ -45,10 +45,6 @@ class OutputWindow(ScrolledText):
   def dummy(self): pass # for lambda
 
 class Application(Frame):
-  ProductName = '''GUI Base V1.2, iceberg@21cn.com, build@date 2006-10-27 22:53
-      '''
-    # V1.1 在菜单中应用了全局热键
-    # V1.2 自动化的about信息
   outputWindow = None
   def genOutputWindow(self, text=''): # This works as a wrapper which within namespace of sub-classes
     return OutputWindow(self, text)
@@ -59,7 +55,7 @@ class Application(Frame):
     self.createNotebookWidget()
     self.createMainWidget()
 
-  def menuSpecs(self):  # 重载此方法实现菜单的定制
+  def menuSpecs(self):  # Override this to customize the menu
     return [  # Each item should be a (label_underscope, callback|subMenuList, [sequence])
       ("_File",
         [ ('', None),
@@ -113,12 +109,13 @@ class Application(Frame):
     self.outputWindow.append('World')
   def help(self): return 'Help Message'
   def aboutMsg(self):
-    return '''GUI Base V1.2, iceberg@21cn.com, build@date 2006-10-22 15:00
+    return '''GUI Base V1.3, rayluo.mba@gmail.com, build@date 2020-1-7
       '''
-    # V1.1 在菜单中应用了全局热键
-    # V1.2 自动化的about信息
+    # V1.3 Survive icon error on Linux
+    # V1.2 Automatically-recursive AboutMsg()
+    # V1.1 Menu item has global hotkey
 
-  def about(self):  # 各子类设置自己的aboutMsg()成员方法即可。这个方法会自动递归引用。
+  def about(self):  # Automatically and recursively calls each sub-class's aboutMsg()
     aboutMsg = self.aboutMsg() + '\n'
     parentName = self.__class__.__bases__ and self.__class__.__bases__[0].__name__ or ''
     parent = self.__class__.__bases__ and self.__class__.__bases__[0] or None
