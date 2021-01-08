@@ -2,8 +2,24 @@
 from Tkinter import *
 from Tix import *
 import os,time,types,sys
+import platform
+import logging
 
-icon = os.path.splitext(sys.argv[0])[0] + '.ico'
+logger = logging.getLogger(__name__)
+
+def _enable_icon(tk_obj):
+    icon_file_type = {  # https://stackoverflow.com/a/30271475/728675
+        "Windows": ".ico",
+        "Linux": ".xbm",
+        }.get(platform.system())
+    if icon_file_type:
+        icon = os.path.splitext(sys.argv[0])[0] + icon_file_type
+        if os.path.exists(icon):
+            try:
+                tk_obj.iconbitmap(icon)
+            except TclError:  # https://stackoverflow.com/questions/29973246/using-tkinter-command-iconbitmap-to-set-window-icon#comment116025031_30271475
+                logger.exception("Ignoring iconbitmap() failure")
+
 
 def prepstr(s): # Copy from IDLE
     # Helper to extract the underscore from a string, e.g.
@@ -16,7 +32,7 @@ def prepstr(s): # Copy from IDLE
 class OutputWindow(ScrolledText):
   def __init__(self, parent, text=''): # I don't know what parameters is needed yet, I know few about Tck/Tk
     t = Toplevel(parent, takefocus=1) # Don't know how to make it wider
-    if os.path.exists(icon): t.iconbitmap(icon)
+    _enable_icon(t)
     self.scrolledText = ScrolledText( t, options='text.width 50 text.height 30 wrap none font gb2312')
     self.scrolledText.pack(fill=BOTH)
     Button( t, text='Ok', command=t.destroy ).pack(side=BOTTOM)
@@ -87,7 +103,7 @@ class Application(Frame):
 
   def createPopupDialog(self, text=''):
     t = Toplevel(self, takefocus=1)
-    if os.path.exists(icon): t.iconbitmap(icon)
+    _enable_icon(t)
     Label( t, text=text).pack()
     Button( t, text='Ok', command=t.destroy ).pack(side=BOTTOM)
     t.focus_force() # This gets focus, but can not always keep it
@@ -116,7 +132,7 @@ class Application(Frame):
     root = Tk()
     app = cls(master=root)
     root.title(app.about())
-    if os.path.exists(icon): root.iconbitmap(icon)
+    _enable_icon(root)
     root.protocol('WM_DELETE_WINDOW', root.quit)  # Otherwise, when closing window, will occur _tkinter.TclError: can't invoke "wm" command:  application has been destroyed
     app.mainloop()
     root.destroy()
