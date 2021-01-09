@@ -192,16 +192,16 @@ import cPickle
 class OpenInput(GreenInput):
   encoding = 'utf16'
   CodeName = None
-  codeFileDialogue = None
-  def aboutMsg(self): return '''GReen INput(%s), iceberg@21cn.com, build@date 2006-10-15 11:37
+
+  def aboutMsg(self): return '''GReen INput(%s), V1.1, rayluo.mba@gmail.com, build@date 2020-1-8
     ''' % self.CodeName
-  def popupFileSelectDialogue(self):
-    self.codeFileDialogue.popup()
-  def menuSpecs(self):  # 重载此方法实现菜单的定制
+        # V1.1 Replace undocumented(?) and now broken ExFileSelectDialog()
+
+  def menuSpecs(self):
     return [  # Each item should be a (label_underscope, callback|subMenuList, [sequence])
       ("_File",
-        [ ('_Load...', self.popupFileSelectDialogue), # 需要用一个成员方法来包装一下，否则在此处执行时，self.codeFileDialogue仍为None，是尚未定义popup()方法的
-            # '<Control-o>'), # 不知道为什么，这里定义任何快捷键都会导致程序退出
+        [ ('_Load...', self.loadCodeTable),
+            # '<Control-o>'),  # Somehow, hotkey here would cause program abort
           ('', None),
           ('E_xit', self.quit, '<Alt-x>'),
         ] ),
@@ -212,22 +212,27 @@ class OpenInput(GreenInput):
         ('_Debug', self.debug, '<Alt-d>'),
         ] ),
       ]
+
   def initInput(self):
     GreenInput.initInput(self)
     import time, os
     print time.ctime()
-    if not self.codeFileDialogue:
-      self.codeFileDialogue = ExFileSelectDialog(self, command=self.loadCodeTable)
-      self.codeFileDialogue.fsbox.configure( filetypes=FileTypeList({'*.txt': 'Input Code Files'}) )
     if os.path.exists('cache.pkl'):
       print "Load from cache..."
       self.CodeName, self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes, self.charset, self.CodeTable = cPickle.load(
         open('cache.pkl') )
     print self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes  #, self.CodeTable
     print time.ctime()
-  def loadCodeTable(self, event=None):
-    filename = event  # Equals to: self.codeFileDialogue.fsbox.cget('value')
+  def loadCodeTable(self):
     import ConfigParser
+    from tkFileDialog import askopenfilename
+        # The previous ExFileSelectDialog() from Python 2.4/2.5 no longer works
+    filename = askopenfilename(filetypes=[
+        ("Input Code files", (".txt",)),
+        ("All files", ".*"),
+        ])
+    if not filename:
+        return
     codeFile = ConfigParser.SafeConfigParser()
     codeFile.readfp( DecodeW2kCodeFile( open(filename,'rU').read(), self.encoding ) )
     self.MaxCodes = codeFile.getint('Description', 'MaxCodes')
@@ -257,7 +262,7 @@ if __name__ == '__main__':
   logging.basicConfig(level=logging.DEBUG)
   #icelib.gui.Application.run()  # This can test GUI with icon
   #GreenInput.run()  # This starts a scaffold GRIN instance
-  InputTest.run()  # This starts the built-in demo
-  #OpenInput.run()
+  #InputTest.run()  # This starts the built-in demo
+  OpenInput.run()
   #InputBxm.run()
   #InputCapitalNumber.run()
