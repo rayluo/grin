@@ -1,13 +1,14 @@
-======================
 GReen INput 绿色输入法
 ======================
-:author: Iceberg at 21cn dot com
-:date: 2006
+    :author: Ray Luo
+    :date: 2006-2020
 
 
-起因
-====
-In 2006 I travelled to a town where the internet cafe provided no chinese input facility, so I stepped out and spent several hours developing a chinese input program in portable-app form, then came back in to compose and send my email.
+How it started
+--------------
+In 2006 I travelled to a town where the internet cafe provided no chinese input facility,
+so I temporarily left, and spent several hours developing a chinese input program in portable-app form,
+then came back in to compose and send my email to my friends in China.
 
 
 使用说明
@@ -20,5 +21,5 @@ In 2006 I travelled to a town where the internet cafe provided no chinese input 
 指定。所以理论上只要能配合适当的码表，就可以用本输入法软件按
 任意输入法的编码方式进入文字输入。码表格式请参考本软件附带的
 若干个示范*.txt格式文件。
-    需要提供或交流输入法或码表的人士可联系 iceberg@21cn.com ,
+    需要提供或交流输入法或码表的人士可联系 rayluo.mba@gmail.com ,
 主题请写明《关于GRIN的码表》。
