@@ -1,44 +1,49 @@
-# coding: gb2312
+# coding: utf-8
+import logging
 from Tkinter import *
 from Tix import *
 import icelib.gui
 
+logger = logging.getLogger(__name__)
+
 class GreenInput(icelib.gui.Application):
-  MaxCodes = 0 # 0±íÊ¾ÎŞÏŞÖÆ
+  MaxCodes = 0  # 0 means unlimited
   UsedCodes='abcdefghijklmnopqrstuvwxyz'
   WildChar ='?'
-  ChooseCodes=None  # ×Ô¶¯Éè¶¨
-  CodeTable = {}  # Àı: { 'ni':['Äã', 'Äİ'], ... }
-  charset = ''
+  ChooseCodes=None  # It will be automatically initialized
+  CodeTable = {}  # Words in Unicode. Example: { 'ni':[u'ä½ ', u'å¦®'], ... }
 
-  def aboutMsg(self): return '''GRIN(GReen INput), V1.0, iceberg@21cn.com, build@date 2006-10-27 22:48
+  def aboutMsg(self): return '''GRIN(GReen INput), V1.1, rayluo.mba@gmail.com, build@date 2020-1-7
     '''
-    # @todo Ö§³Ö¶àÓÚ10¸öÖØÂë×ÖµÄ·­Ò³
-    # @todo Ö§³Ö¶ÔÊäÈë·¨µÄÖØÂëÂÊ×÷Í³¼Æ
-    # @todo Ö§³ÖÁªÏë
+    # V1.1 Refactor so that it can run on Python 2.7
+
   def help(self): return unicode('''
-        Õâ¸öÂÌÉ«ÊäÈë·¨Èí¼şÔÚÊ¹ÓÃÉÏ²¢²»ÈçÖ÷Á÷µÄ¸÷ÖÖÊäÈë·¨Èí¼ş·½±ã£¬
-    ËüÉõÖÁĞèÒªÄãÔÚ½á¹û´°¿Ú×Ô¼º°ÑÄÚÈİÕ³Ìùµ½ÆäËüÄ¿±êÈí¼şÖ®ÖĞ¡£
-        ËüÖ÷ÒªÓÃÓÚÔÚÍø°ÉÖ®ÀàµÄ²»ÔÊĞíÊ¹ÓÃÕßËæÒâ°²×°Èí¼şµÄ³¡ºÏÊ¹ÓÃ¡£
-    ÒòÎª±¾ÂÌÉ«ÊäÈë·¨²»ĞèÒªÍùWindowsÏµÍ³¼°×¢²á±íÖ®ÖĞĞ´ÈëÈÎºÎÄÚÈİ¡£
-        ¾ßÌåµÄÊäÈë·¨±àÂë¹æÔò£¬ÊÇÓÉ±»¼ÓÔØµÄ·ûºÏÌØ¶¨¹æÔòµÄÂë±íÎÄ¼ş
-    Ö¸¶¨¡£ËùÒÔÀíÂÛÉÏÖ»ÒªÄÜÅäºÏÊÊµ±µÄÂë±í£¬¾Í¿ÉÒÔÓÃ±¾ÊäÈë·¨Èí¼ş°´
-    ÈÎÒâÊäÈë·¨µÄ±àÂë·½Ê½½øÈëÎÄ×ÖÊäÈë¡£Âë±í¸ñÊ½Çë²Î¿¼±¾Èí¼ş¸½´øµÄ
-    Èô¸É¸öÊ¾·¶*.txt¸ñÊ½ÎÄ¼ş¡£
-        ĞèÒªÌá¹©»ò½»Á÷ÊäÈë·¨»òÂë±íµÄÈËÊ¿¿ÉÁªÏµ iceberg@21cn.com ,
-    Ö÷ÌâÇëĞ´Ã÷¡¶¹ØÓÚGRINµÄÂë±í¡·¡£
-    ''', 'gb2312')
+        è¿™ä¸ªç»¿è‰²è¾“å…¥æ³•è½¯ä»¶åœ¨ä½¿ç”¨ä¸Šå¹¶ä¸å¦‚ä¸»æµçš„å„ç§è¾“å…¥æ³•è½¯ä»¶æ–¹ä¾¿ï¼Œ
+    å®ƒç”šè‡³éœ€è¦ä½ åœ¨ç»“æœçª—å£è‡ªå·±æŠŠå†…å®¹ç²˜è´´åˆ°å…¶å®ƒç›®æ ‡è½¯ä»¶ä¹‹ä¸­ã€‚
+        å®ƒä¸»è¦ç”¨äºåœ¨ç½‘å§ä¹‹ç±»çš„ä¸å…è®¸ä½¿ç”¨è€…éšæ„å®‰è£…è½¯ä»¶çš„åœºåˆä½¿ç”¨ã€‚
+    å› ä¸ºæœ¬ç»¿è‰²è¾“å…¥æ³•ä¸éœ€è¦å¾€Windowsç³»ç»ŸåŠæ³¨å†Œè¡¨ä¹‹ä¸­å†™å…¥ä»»ä½•å†…å®¹ã€‚
+        å…·ä½“çš„è¾“å…¥æ³•ç¼–ç è§„åˆ™ï¼Œæ˜¯ç”±è¢«åŠ è½½çš„ç¬¦åˆç‰¹å®šè§„åˆ™çš„ç è¡¨æ–‡ä»¶
+    æŒ‡å®šã€‚æ‰€ä»¥ç†è®ºä¸Šåªè¦èƒ½é…åˆé€‚å½“çš„ç è¡¨ï¼Œå°±å¯ä»¥ç”¨æœ¬è¾“å…¥æ³•è½¯ä»¶æŒ‰
+    ä»»æ„è¾“å…¥æ³•çš„ç¼–ç æ–¹å¼è¿›å…¥æ–‡å­—è¾“å…¥ã€‚ç è¡¨æ ¼å¼è¯·å‚è€ƒæœ¬è½¯ä»¶é™„å¸¦çš„
+    è‹¥å¹²ä¸ªç¤ºèŒƒ*.txtæ ¼å¼æ–‡ä»¶ã€‚
+        éœ€è¦æä¾›æˆ–äº¤æµè¾“å…¥æ³•æˆ–ç è¡¨çš„äººå£«å¯è”ç³» rayluo.mba@gmail.com ,
+    ä¸»é¢˜è¯·å†™æ˜ã€Šå…³äºGRINçš„ç è¡¨ã€‹ã€‚
+    ''', 'utf-8')
+
   def __init__(self, master):
     icelib.gui.Application.__init__(self, master)
-    self.initInput()  # ÓÉÓÚChooseCodes³õÊ¼»¯µÄĞèÒª£¬¾ö¶¨ÏÈµ÷ÓÃ´Ë·½·¨ÔÙ×öÏÂÁĞÕûÀí¹¤×÷
+    self.initInput()  # Calls this first, and then postInitInput() will setup ChooseCodes
     self.postInitInput()
+
   def initInput(self):
     pass
+
   def postInitInput(self):
     self.ChooseCodes = '1' in self.UsedCodes and '!@#$%^&*() ' or '1234567890 ' # Ends with space
     assert self.WildChar not in self.UsedCodes, 'WildChar overlaps some UsedCodes'
     assert not [ c for c in self.ChooseCodes if c in self.UsedCodes ], 'ChooseCodes overlaps some UsedCodes'
     self.master.title(self.about())
+
   def createMainWidget(self):
     parent = self
 
@@ -70,21 +75,38 @@ class GreenInput(icelib.gui.Application):
     self.output.delete('0.0', END)
     self.candidates.delete(0, END)
     self.code.delete(0, END)
+
   def dropLastKey(self):
-    self.code.delete(len(self.code.get())-1)  # É¾³ı×îºóÒ»¸öÊäÈëµÄ×Ö·û
+    self.code.delete(len(self.code.get())-1)  # Delete the last input character
+
   def inputCode(self, event=None):
-    inputKey = event.char # ×¢Òâµ±ÊäÈëÉÏµµ×Ö·û»òÌØÊâ×Ö·ûÊ±£¬Õâ¸öÖµ²»Í¬ÓÚ chr(event.keycode).lower()
-    print "START: '%s'(%d), '%s', \"%s\"" % ( event.char, event.keycode, inputKey, self.code.get() )
-    if event.keycode==8:  # backspace
-      return
+    logger.debug("INPUT: char='%s', keycode=%d, code.get()='%s'",
+        event.char,  # In Python 2.4/2.5 era, input of "!@#$..." would
+                    # result in a char different than chr(event.keycode).lower()
+                    # In Python 2.7, this seems to be always an empty string
+        event.keycode,  # Something relevant to the key's physical position on keyboard
+        self.code.get(),  # This seems to contain all inputed keys, tested in Python 2.7 on Linux
+            # Known issue: Tkinter widget is too slow to recognize a quick "1234"
+            #   as four separated keys, it would return one 4-letter string.
+        )
+    inputKey = self.code.get()[-1] if self.code.get() else None
+    if not inputKey:  # This happens when the input area was cleaned by backspace
+        self.candidates.delete(0, END)
+        return
     if inputKey not in self.UsedCodes + self.ChooseCodes:
       return self.dropLastKey()
     if inputKey in self.ChooseCodes:
       order = self.ChooseCodes.index(inputKey) % 10 # So '1' and ' ' both point to the first candidate
       self.dropLastKey()
       result = self.__translate( self.code.get() )
-      print 'DEBUG=',order, result, min( len(result)-1, order ), result and result[ min( len(result)-1, order ) ] or ''
-      self.output.insert( INSERT, result and result[ min( len(result)-1, order ) ] or inputKey )
+      position = min(len(result)-1, order)
+      logger.debug('FOUND: %s[%d] = %s', result, position, result[position] if result else '')
+      self.output.insert(
+            INSERT,
+            result[position] if result
+                else inputKey,  # This would allow inputting numeric keys
+            )
+      # TODO: Support chaining input (a.k.a. æ”¯æŒè”æƒ³)
       self.candidates.delete(0, END)
       self.code.delete(0, END)
       return
@@ -93,34 +115,28 @@ class GreenInput(icelib.gui.Application):
       if len(result)==0:  # No matching
         return self.dropLastKey()
       elif len(result)==1 and self.isEndOfInput( self.code.get() ):
-        self.output.insert( INSERT, result[0] )  # ENDÊÇ×îºó£¬'0.0'ÊÇÆğÊ¼£¬INSERTÊÇµ±Ç°
+        self.output.insert( INSERT, result[0] )  # END means last, '0.0' is beginningï¼ŒINSERT is current
         self.candidates.delete(0, END)
         self.code.delete(0, END)
       else:
         self.candidates.delete(0, END)
+        # TODO: Support paging when there are more than 10 same-code candidates?
         for offset in range( 0, min(10, len(result)) ):
           self.candidates.insert(END, "%d:%s" % (offset+1, result[offset]) )
       return
 
-  def isEndOfInput(self, code): # È¡¾öÓÚ×î´óÂë³¤£¬»òÕßÊÇÊäÈëÁË¿Õ¸ñ
-    if self.MaxCodes: return len(code)>=self.MaxCodes
-    else: return code.endswith(' ')
+  def isEndOfInput(self, code):
+    return code.endswith(' ') or len(code) >= self.MaxCodes
 
   def __translate(self, code):
-    if not code: return []
-    else:
-      #print 'Before:', code
-      result = self.translate(code.strip())
-      #print 'After:', result
-      return result
-  def translate(self, code):  # @return a list containing candidates
-    keys = [ key for key in self.CodeTable.keys() if key.startswith(code) ] # ÕâÀïÒ»¶¨Òª±éÀúÁËËùÓĞ·ûºÏÌõ¼şµÄkeys£¬ÒÔºóµÄ²½ÖèÔÙ×öÇ°10¸öµÄÉ¸Ñ¡£¬·ñÔò»á¶ªÊ§²¿·ÖÖØÂë×Ö
-    keys.sort() # ¼òÂëÏÈ¼û
-    lists = [ self.CodeTable[key] for key in keys[:10] ] [:10]  # Ä¿Ç°²»Ö§³Ö¶àÓÚ10¸öºòÑ¡×ÖµÄ·­Ò³
-    return reduce( lambda x,y:x+y, lists, [] )  [:10]
-  def _decode(self, x):
-    try: return unicode( x, self.charset )
-    except: return x
+      return self.translate(code.strip()) if code else []
+
+  def translate(self, code, limit=10):  # @return a list containing candidates
+    keys = [  # Find all candidates first, before subsequent filtering
+        key for key in self.CodeTable.keys() if key.startswith(code)]
+    keys.sort()  # Simple code shall be showed at the top (a.k.a. ç®€ç å…ˆè§)
+    lists = [self.CodeTable[key] for key in keys[:limit]][:limit]
+    return reduce(lambda x,y:x+y, lists, [])[:limit]  # Flatten them
 
   def guiOutput(self, actionName, fileName, result):
     self.outputWindow.append( "%s %s: %s" % (actionName, fileName, result and result or 'successful') )
@@ -129,29 +145,30 @@ class GreenInput(icelib.gui.Application):
 class InputTest(GreenInput):
   MaxCodes=4
   CodeTable={
-    'one':  [u'Ò¼', u'Ò»'],
-    'two':  [u'·¡', u'¶ş'],
-    'thre': [u'Èş', u'Èı'],
-    'four': [u'ËÁ', u'ËÄ'],
-    'five': [u'Îé', u'Îå'],
-    'six':  [u'Â½', u'Áù'],
-    'seve': [u'Æâ', u'Æß'],
-    'eigh': [u'°Æ', u'°Ë'],
-    'nine': [u'¾Á', u'¾Å'],
-    'ten':  [u'Ê°', u'Ê®'],
-    'zero': [u'Áã']
+    'zero': [u'é›¶'],  # Use this to test auto-select when max-code rached with single candidate
+    'one':  [u'å£¹', u'ä¸€'],
+    'two':  [u'è´°', u'äºŒ'],
+    'thre': [u'å', u'ä¸‰'],
+    'four': [u'è‚†', u'å››'],
+    'five': [u'ä¼', u'äº”'],
+    'six':  [u'é™†', u'å…­'],
+    'seve': [u'æŸ’', u'ä¸ƒ'],
+    'eigh': [u'æŒ', u'å…«'],
+    'nine': [u'ç–', u'ä¹'],
+    'ten':  [u'æ‹¾', u'å'],
     }
   def aboutMsg(self): return '''InputTest, iceberg@21cn.com, build@date 2006-10-15 11:37
     '''
 
 
-class DecodeW2kCodeFile:
-  def __init__(self, alldata, encoding='obsolete'):
-    try: alldata = unicode(alldata, 'utf16')  # W2k Code file needs Unicode-decode µ«ÊÇ£¬¡°²»¡±×Ö»á±»×ª»»Îª¡°ÉÏ¡±£¿£¡
-    except: pass  # ²»×÷ÈÎºÎ×ª»»
+class DecodeW2kCodeFile:  # It maps W2kCodeFile format to ConfigParser format
+  def __init__(self, alldata, encoding='utf8'):
+    try: alldata = unicode(alldata, encoding)  # W2k Code file needs Unicode-decode
+    except: logger.exception("Ignore %s decode error", encoding)
     self.lines = alldata.splitlines(True)
     self.offset = 0
-  def readline(self, size=None): # ±¾ÊµÏÖÖĞºöÂÔsize²ÎÊı
+
+  def readline(self, size=None):  # This implementation ignores size parameter
     import string
     while self.offset < len(self.lines):
       line = self.lines[self.offset]
@@ -161,30 +178,35 @@ class DecodeW2kCodeFile:
         continue
       elif '[' in line or '=' in line:  # valid for ConfigParser
         return line
-      elif line.strip()=='': # È¥³ı¿ÕĞĞ
+      elif line.strip()=='':  # Skip blank line
         continue
       else:
         hz = line.rstrip( string.printable )
         code = line[len(hz):]
         if hz and code:
-          return hz + '=' + code  # ×¢Òâ: Èç¹ûÊÇcode=hz£¬Ôò´¦Àí²»ÁËÖØÂëµÄÇé¿ö¡£»»ÑÔÖ®£¬Ä¿Ç°ÕâÀï²»Ö§³ÖÂë±íÄÚ³öÏÖÍ¬Ò»¸öºº×Ö£¨´Ê£©ÓĞ²»Í¬µÄÊäÈë±àÂë¡£
-        else: print 'Unrecognised code start (%s/%s) at line #%d: %s' % (hz, code, self.offset, line)
+          return hz + '=' + code  # This maps to a key-value pair.
+            # Cannot use "code=hz", b/c it won't handle one-code-multiple-word (é‡ç )
+            # By go with "hz=code", we choose to not support one-word-multiple-code
+            # (i.e.  ç›®å‰è¿™é‡Œä¸æ”¯æŒç è¡¨å†…å‡ºç°åŒä¸€ä¸ªæ±‰å­—ï¼ˆè¯ï¼‰æœ‰ä¸åŒçš„è¾“å…¥ç¼–ç )
+        else:
+            logger.warn(
+                'Unrecognised code start (%s/%s) at line #%d: %s',
+                hz, code, self.offset, line)
     else: return ''
 
 import cPickle
 class OpenInput(GreenInput):
-  encoding = 'utf16'
   CodeName = None
-  codeFileDialogue = None
-  def aboutMsg(self): return '''GReen INput(%s), iceberg@21cn.com, build@date 2006-10-15 11:37
+
+  def aboutMsg(self): return '''GReen INput(%s), V1.1, rayluo.mba@gmail.com, build@date 2020-1-8
     ''' % self.CodeName
-  def popupFileSelectDialogue(self):
-    self.codeFileDialogue.popup()
-  def menuSpecs(self):  # ÖØÔØ´Ë·½·¨ÊµÏÖ²Ëµ¥µÄ¶¨ÖÆ
+        # V1.1 Replace undocumented(?) and now broken ExFileSelectDialog()
+
+  def menuSpecs(self):
     return [  # Each item should be a (label_underscope, callback|subMenuList, [sequence])
       ("_File",
-        [ ('_Load...', self.popupFileSelectDialogue), # ĞèÒªÓÃÒ»¸ö³ÉÔ±·½·¨À´°ü×°Ò»ÏÂ£¬·ñÔòÔÚ´Ë´¦Ö´ĞĞÊ±£¬self.codeFileDialogueÈÔÎªNone£¬ÊÇÉĞÎ´¶¨Òåpopup()·½·¨µÄ
-            # '<Control-o>'), # ²»ÖªµÀÎªÊ²Ã´£¬ÕâÀï¶¨ÒåÈÎºÎ¿ì½İ¼ü¶¼»áµ¼ÖÂ³ÌĞòÍË³ö
+        [ ('_Load...', self.loadCodeTable),
+            # '<Control-o>'),  # Somehow, hotkey here would cause program abort
           ('', None),
           ('E_xit', self.quit, '<Alt-x>'),
         ] ),
@@ -195,49 +217,68 @@ class OpenInput(GreenInput):
         ('_Debug', self.debug, '<Alt-d>'),
         ] ),
       ]
+
   def initInput(self):
     GreenInput.initInput(self)
-    import time, os
-    print time.ctime()
-    if not self.codeFileDialogue:
-      self.codeFileDialogue = ExFileSelectDialog(self, command=self.loadCodeTable)
-      self.codeFileDialogue.fsbox.configure( filetypes=FileTypeList({'*.txt': 'Input Code Files'}) )
+    import os
     if os.path.exists('cache.pkl'):
-      print "Load from cache..."
-      self.CodeName, self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes, self.charset, self.CodeTable = cPickle.load(
+      logger.info("Reload from cache...")
+      self.CodeName, self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes, self.CodeTable = cPickle.load(
         open('cache.pkl') )
-    print self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes  #, self.CodeTable
-    print time.ctime()
-  def loadCodeTable(self, event=None):
-    filename = event  # Equals to: self.codeFileDialogue.fsbox.cget('value')
+    logger.info("MaxCodes=%s, WildChar=%s, UsedCodes=%s, ChooseCodes=%s",
+        self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes)
+
+  def _decode(self, x, charset):
+    try: return unicode(x, charset)
+    except: return x
+
+  def loadCodeTable(self):
     import ConfigParser
+    from tkFileDialog import askopenfilename
+        # The previous ExFileSelectDialog() from Python 2.4/2.5 no longer works
+    filename = askopenfilename(filetypes=[
+        ("Input Code files", (".txt",)),
+        ("All files", ".*"),
+        ])
+    if not filename:
+        return
     codeFile = ConfigParser.SafeConfigParser()
-    codeFile.readfp( DecodeW2kCodeFile( open(filename,'rU').read(), self.encoding ) )
+    default_charset = "utf16"
+    codeFile.readfp(DecodeW2kCodeFile(
+        open(filename,'rU').read(),
+        encoding=default_charset,  # NOTE:
+            # Historically, UTF16 is good enough to read metadata from GB18030 input,
+            # but UTF16BOM is also observed to incorrectly convert "ä¸" to "ä¸Š".
+            # Ideally we should know encoding beforehand and they better be UTF8.
+        ))
     self.MaxCodes = codeFile.getint('Description', 'MaxCodes')
     self.UsedCodes = codeFile.get('Description', 'UsedCodes')
     self.WildChar = codeFile.get('Description', 'WildChar')
-    try: self.charset = codeFile.get('Description', 'Charset')
-    except: self.charset = ''
-    try: self.CodeName = self._decode( codeFile.get('Description', 'Name') )
+    try: charset = codeFile.get('Description', 'Charset')
+    except: charset = default_charset
+    try: self.CodeName = self._decode(codeFile.get('Description', 'Name'), charset)
     except: self.CodeName = filename
     self.CodeTable = {}
     for hz, code in codeFile.items('Text'):
+      # TODO: Show a stat for duplicate percentage for the given code table?
       if self.CodeTable.get(code) is None: self.CodeTable[code]=[]
-      self.CodeTable[code].append( self._decode(hz) )
+      self.CodeTable[code].append(self._decode(hz, charset))
     self.postInitInput()
-    cPickle.dump( ( self.CodeName, self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes, self.charset, self.CodeTable ),
-      open('cache.pkl','w') )
+    cPickle.dump(
+        (self.CodeName, self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes, self.CodeTable),
+        open('cache.pkl','w'))
 
 class InputCapitalNumber(OpenInput):
   CodeName = 'capnum.txt'
 
 class InputBxm(OpenInput):
-  encoding = ''
   CodeName = 'winbxm.txt'
-  charset = 'gb2312'
 
 if __name__ == '__main__':
+  logging.basicConfig(level=logging.DEBUG)
+  #icelib.gui.Application.run()  # This can test GUI with icon
+  #GreenInput.run()  # This starts a scaffold GRIN instance
+  #InputTest.run()  # This starts the built-in demo
   OpenInput.run()
   #InputBxm.run()
   #InputCapitalNumber.run()
-  #InputTest.run()

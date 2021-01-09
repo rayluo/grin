@@ -1,9 +1,25 @@
-# coding: gb2312
+# coding: utf-8
 from Tkinter import *
 from Tix import *
 import os,time,types,sys
+import platform
+import logging
 
-icon = os.path.splitext(sys.argv[0])[0] + '.ico'
+logger = logging.getLogger(__name__)
+
+def _enable_icon(tk_obj):
+    icon_file_type = {  # https://stackoverflow.com/a/30271475/728675
+        "Windows": ".ico",
+        "Linux": ".xbm",
+        }.get(platform.system())
+    if icon_file_type:
+        icon = os.path.splitext(sys.argv[0])[0] + icon_file_type
+        if os.path.exists(icon):
+            try:
+                tk_obj.iconbitmap(icon)
+            except TclError:  # https://stackoverflow.com/questions/29973246/using-tkinter-command-iconbitmap-to-set-window-icon#comment116025031_30271475
+                logger.exception("Ignoring iconbitmap() failure")
+
 
 def prepstr(s): # Copy from IDLE
     # Helper to extract the underscore from a string, e.g.
@@ -16,7 +32,7 @@ def prepstr(s): # Copy from IDLE
 class OutputWindow(ScrolledText):
   def __init__(self, parent, text=''): # I don't know what parameters is needed yet, I know few about Tck/Tk
     t = Toplevel(parent, takefocus=1) # Don't know how to make it wider
-    if os.path.exists(icon): t.iconbitmap(icon)
+    _enable_icon(t)
     self.scrolledText = ScrolledText( t, options='text.width 50 text.height 30 wrap none font gb2312')
     self.scrolledText.pack(fill=BOTH)
     Button( t, text='Ok', command=t.destroy ).pack(side=BOTTOM)
@@ -29,10 +45,6 @@ class OutputWindow(ScrolledText):
   def dummy(self): pass # for lambda
 
 class Application(Frame):
-  ProductName = '''GUI Base V1.2, iceberg@21cn.com, build@date 2006-10-27 22:53
-      '''
-    # V1.1 在菜单中应用了全局热键
-    # V1.2 自动化的about信息
   outputWindow = None
   def genOutputWindow(self, text=''): # This works as a wrapper which within namespace of sub-classes
     return OutputWindow(self, text)
@@ -43,7 +55,7 @@ class Application(Frame):
     self.createNotebookWidget()
     self.createMainWidget()
 
-  def menuSpecs(self):  # 重载此方法实现菜单的定制
+  def menuSpecs(self):  # Override this to customize the menu
     return [  # Each item should be a (label_underscope, callback|subMenuList, [sequence])
       ("_File",
         [ ('', None),
@@ -87,7 +99,7 @@ class Application(Frame):
 
   def createPopupDialog(self, text=''):
     t = Toplevel(self, takefocus=1)
-    if os.path.exists(icon): t.iconbitmap(icon)
+    _enable_icon(t)
     Label( t, text=text).pack()
     Button( t, text='Ok', command=t.destroy ).pack(side=BOTTOM)
     t.focus_force() # This gets focus, but can not always keep it
@@ -97,12 +109,13 @@ class Application(Frame):
     self.outputWindow.append('World')
   def help(self): return 'Help Message'
   def aboutMsg(self):
-    return '''GUI Base V1.2, iceberg@21cn.com, build@date 2006-10-22 15:00
+    return '''GUI Base V1.3, rayluo.mba@gmail.com, build@date 2020-1-7
       '''
-    # V1.1 在菜单中应用了全局热键
-    # V1.2 自动化的about信息
+    # V1.3 Survive icon error on Linux
+    # V1.2 Automatically-recursive AboutMsg()
+    # V1.1 Menu item has global hotkey
 
-  def about(self):  # 各子类设置自己的aboutMsg()成员方法即可。这个方法会自动递归引用。
+  def about(self):  # Automatically and recursively calls each sub-class's aboutMsg()
     aboutMsg = self.aboutMsg() + '\n'
     parentName = self.__class__.__bases__ and self.__class__.__bases__[0].__name__ or ''
     parent = self.__class__.__bases__ and self.__class__.__bases__[0] or None
@@ -116,7 +129,7 @@ class Application(Frame):
     root = Tk()
     app = cls(master=root)
     root.title(app.about())
-    if os.path.exists(icon): root.iconbitmap(icon)
+    _enable_icon(root)
     root.protocol('WM_DELETE_WINDOW', root.quit)  # Otherwise, when closing window, will occur _tkinter.TclError: can't invoke "wm" command:  application has been destroyed
     app.mainloop()
     root.destroy()
