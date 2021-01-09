@@ -1,7 +1,10 @@
 # coding: gb2312
+import logging
 from Tkinter import *
 from Tix import *
 import icelib.gui
+
+logger = logging.getLogger(__name__)
 
 class GreenInput(icelib.gui.Application):
   MaxCodes = 0 # 0表示无限制
@@ -11,11 +14,12 @@ class GreenInput(icelib.gui.Application):
   CodeTable = {}  # 例: { 'ni':['你', '妮'], ... }
   charset = ''
 
-  def aboutMsg(self): return '''GRIN(GReen INput), V1.0, iceberg@21cn.com, build@date 2006-10-27 22:48
+  def aboutMsg(self): return '''GRIN(GReen INput), V1.1, rayluo.mba@gmail.com, build@date 2020-1-7
     '''
     # @todo 支持多于10个重码字的翻页
     # @todo 支持对输入法的重码率作统计
     # @todo 支持联想
+    # V1.1 Refactor so that it can run on Python 2.7
   def help(self): return unicode('''
         这个绿色输入法软件在使用上并不如主流的各种输入法软件方便，
     它甚至需要你在结果窗口自己把内容粘贴到其它目标软件之中。
@@ -73,18 +77,32 @@ class GreenInput(icelib.gui.Application):
   def dropLastKey(self):
     self.code.delete(len(self.code.get())-1)  # 删除最后一个输入的字符
   def inputCode(self, event=None):
-    inputKey = event.char # 注意当输入上档字符或特殊字符时，这个值不同于 chr(event.keycode).lower()
-    print "START: '%s'(%d), '%s', \"%s\"" % ( event.char, event.keycode, inputKey, self.code.get() )
-    if event.keycode==8:  # backspace
-      return
+    logger.debug("INPUT: char='%s', keycode=%d, code.get()='%s'",
+        event.char,  # In Python 2.4/2.5 era, input of "!@#$..." would
+                    # result in a char different than chr(event.keycode).lower()
+                    # In Python 2.7, this seems to be always an empty string
+        event.keycode,  # Something relevant to the key's physical position on keyboard
+        self.code.get(),  # This seems to contain all inputed keys, tested in Python 2.7 on Linux
+            # Known issue: Tkinter widget is too slow to recognize a quick "1234"
+            #   as four separated keys, it would return one 4-letter string.
+        )
+    inputKey = self.code.get()[-1] if self.code.get() else None
+    if not inputKey:  # This happens when the input area was cleaned by backspace
+        self.candidates.delete(0, END)
+        return
     if inputKey not in self.UsedCodes + self.ChooseCodes:
       return self.dropLastKey()
     if inputKey in self.ChooseCodes:
       order = self.ChooseCodes.index(inputKey) % 10 # So '1' and ' ' both point to the first candidate
       self.dropLastKey()
       result = self.__translate( self.code.get() )
-      print 'DEBUG=',order, result, min( len(result)-1, order ), result and result[ min( len(result)-1, order ) ] or ''
-      self.output.insert( INSERT, result and result[ min( len(result)-1, order ) ] or inputKey )
+      position = min(len(result)-1, order)
+      logger.debug('FOUND: %s[%d] = %s', result, position, result[position] if result else '')
+      self.output.insert(
+            INSERT,
+            result[position] if result
+                else inputKey,  # This would allow inputting numeric keys
+            )
       self.candidates.delete(0, END)
       self.code.delete(0, END)
       return
@@ -102,9 +120,8 @@ class GreenInput(icelib.gui.Application):
           self.candidates.insert(END, "%d:%s" % (offset+1, result[offset]) )
       return
 
-  def isEndOfInput(self, code): # 取决于最大码长，或者是输入了空格
-    if self.MaxCodes: return len(code)>=self.MaxCodes
-    else: return code.endswith(' ')
+  def isEndOfInput(self, code):
+    return code.endswith(' ') or len(code) >= self.MaxCodes
 
   def __translate(self, code):
     if not code: return []
@@ -237,7 +254,10 @@ class InputBxm(OpenInput):
   charset = 'gb2312'
 
 if __name__ == '__main__':
-  OpenInput.run()
+  logging.basicConfig(level=logging.DEBUG)
+  #icelib.gui.Application.run()  # This can test GUI with icon
+  #GreenInput.run()  # This starts a scaffold GRIN instance
+  InputTest.run()  # This starts the built-in demo
+  #OpenInput.run()
   #InputBxm.run()
   #InputCapitalNumber.run()
-  #InputTest.run()
