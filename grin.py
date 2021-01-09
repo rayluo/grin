@@ -11,8 +11,7 @@ class GreenInput(icelib.gui.Application):
   UsedCodes='abcdefghijklmnopqrstuvwxyz'
   WildChar ='?'
   ChooseCodes=None  # It will be automatically initialized
-  CodeTable = {}  # Example: { 'ni':['你', '妮'], ... }
-  charset = ''
+  CodeTable = {}  # Words in Unicode. Example: { 'ni':[u'你', u'妮'], ... }
 
   def aboutMsg(self): return '''GRIN(GReen INput), V1.1, rayluo.mba@gmail.com, build@date 2020-1-7
     '''
@@ -139,10 +138,6 @@ class GreenInput(icelib.gui.Application):
     lists = [self.CodeTable[key] for key in keys[:limit]][:limit]
     return reduce(lambda x,y:x+y, lists, [])[:limit]  # Flatten them
 
-  def _decode(self, x):
-    try: return unicode( x, self.charset )
-    except: return x
-
   def guiOutput(self, actionName, fileName, result):
     self.outputWindow.append( "%s %s: %s" % (actionName, fileName, result and result or 'successful') )
 
@@ -167,9 +162,9 @@ class InputTest(GreenInput):
 
 
 class DecodeW2kCodeFile:  # It maps W2kCodeFile format to ConfigParser format
-  def __init__(self, alldata, encoding='obsolete'):
-    try: alldata = unicode(alldata, 'utf16')  # W2k Code file needs Unicode-decode
-    except: logger.exception("Ignore utf16 decode error")
+  def __init__(self, alldata, encoding='utf8'):
+    try: alldata = unicode(alldata, encoding)  # W2k Code file needs Unicode-decode
+    except: logger.exception("Ignore %s decode error", encoding)
     self.lines = alldata.splitlines(True)
     self.offset = 0
 
@@ -201,7 +196,6 @@ class DecodeW2kCodeFile:  # It maps W2kCodeFile format to ConfigParser format
 
 import cPickle
 class OpenInput(GreenInput):
-  encoding = 'utf16'
   CodeName = None
 
   def aboutMsg(self): return '''GReen INput(%s), V1.1, rayluo.mba@gmail.com, build@date 2020-1-8
@@ -229,10 +223,14 @@ class OpenInput(GreenInput):
     import os
     if os.path.exists('cache.pkl'):
       logger.info("Reload from cache...")
-      self.CodeName, self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes, self.charset, self.CodeTable = cPickle.load(
+      self.CodeName, self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes, self.CodeTable = cPickle.load(
         open('cache.pkl') )
     logger.info("MaxCodes=%s, WildChar=%s, UsedCodes=%s, ChooseCodes=%s",
         self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes)
+
+  def _decode(self, x, charset):
+    try: return unicode(x, charset)
+    except: return x
 
   def loadCodeTable(self):
     import ConfigParser
@@ -245,30 +243,36 @@ class OpenInput(GreenInput):
     if not filename:
         return
     codeFile = ConfigParser.SafeConfigParser()
-    codeFile.readfp( DecodeW2kCodeFile( open(filename,'rU').read(), self.encoding ) )
+    default_charset = "utf16"
+    codeFile.readfp(DecodeW2kCodeFile(
+        open(filename,'rU').read(),
+        encoding=default_charset,  # NOTE:
+            # Historically, UTF16 is good enough to read metadata from GB18030 input,
+            # but UTF16BOM is also observed to incorrectly convert "不" to "上".
+            # Ideally we should know encoding beforehand and they better be UTF8.
+        ))
     self.MaxCodes = codeFile.getint('Description', 'MaxCodes')
     self.UsedCodes = codeFile.get('Description', 'UsedCodes')
     self.WildChar = codeFile.get('Description', 'WildChar')
-    try: self.charset = codeFile.get('Description', 'Charset')
-    except: self.charset = ''
-    try: self.CodeName = self._decode( codeFile.get('Description', 'Name') )
+    try: charset = codeFile.get('Description', 'Charset')
+    except: charset = default_charset
+    try: self.CodeName = self._decode(codeFile.get('Description', 'Name'), charset)
     except: self.CodeName = filename
     self.CodeTable = {}
     for hz, code in codeFile.items('Text'):
       # TODO: Show a stat for duplicate percentage for the given code table?
       if self.CodeTable.get(code) is None: self.CodeTable[code]=[]
-      self.CodeTable[code].append( self._decode(hz) )
+      self.CodeTable[code].append(self._decode(hz, charset))
     self.postInitInput()
-    cPickle.dump( ( self.CodeName, self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes, self.charset, self.CodeTable ),
-      open('cache.pkl','w') )
+    cPickle.dump(
+        (self.CodeName, self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes, self.CodeTable),
+        open('cache.pkl','w'))
 
 class InputCapitalNumber(OpenInput):
   CodeName = 'capnum.txt'
 
 class InputBxm(OpenInput):
-  encoding = ''
   CodeName = 'winbxm.txt'
-  charset = 'gb2312'
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.DEBUG)
