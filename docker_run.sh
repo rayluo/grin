@@ -18,5 +18,5 @@ docker run -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY \
     --user $(id -u):$(id -g) \
     --rm \
     $IMAGE_NAME \
-    python grin.py
+    python desktop.py
 
