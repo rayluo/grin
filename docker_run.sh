@@ -1,8 +1,8 @@
 # See also https://stackoverflow.com/questions/45141402/build-and-run-dockerfile-with-one-command#comment116261404_51314059
-IMAGE_NAME=tktix_cn
+IMAGE_NAME=tk_cn_sg
 
-# Build the image without context
-cat Dockerfile | docker build -t $IMAGE_NAME -
+# Build the image with context because we'd need the ./requirements.txt
+docker build -t $IMAGE_NAME .
 
 # Permits the root user on the local machine to connect to X windows display.
 # (It feels more secure than "xhost +" which disables all access control.)

@@ -1,18 +1,23 @@
-# Currently use python:2-slim as base, because it has the needed tix-dev package.
-# Eventually, we will remove the tix dependency,
-# and then switch to python:2-alpine, and do "apk add python2-tkinter"
-FROM python:2-slim
+# We might switch to python:3-alpine, which would hopefully result in smaller image.
+##FROM python:3-alpine
+##RUN apk update && apk add \
+##    # python3-tkinter
+##    tk
+##    # font-isas-misc
+FROM python:3-slim
 
 RUN apt update && apt install -y \
-    python-tk \
-    tix-dev \
+    python3-tk \
     \
     # Install one of the Chinese fonts from https://packages.debian.org/stable/fonts/
     fonts-arphic-ukai \
     \
     && rm -rf /var/lib/apt/lists/*
 
-## Currently decides to keep this image as a stable Tkinter+Tix+ChineseFont environment
+COPY requirements.txt /tmp
+RUN pip install -r /tmp/requirements.txt
+
+## Decides to keep this image as a stable tkinter+ChineseFont+dependency environment
 ##      rather than shipping the volatile main app inside this image
 # COPY . /home
 # WORKDIR /home
@@ -20,6 +25,6 @@ RUN apt update && apt install -y \
 
 ## Use the accompanied docker_run.sh to specify latest application at run-time.
 
-# This is the default Tkinter demo
-CMD ["python", "-m", "Tkinter"]
+# This is the default tkinter demo
+CMD ["python", "-m", "tkinter"]
 
