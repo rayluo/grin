@@ -134,8 +134,12 @@ class GreenInput(object):
         assert code
         candidates = self.translate(code)
         if not candidates:  # Encounter invalid input
-            v = valid = code[:-1]  # Discard last code because it doesn't match anything
-            return {"snippet": v, "candidates": self.translate(v), "result": ""}
+            valid = code[:-1]  # Discard last code because it doesn't match anything
+            return {
+                "snippet": valid,
+                "candidates": self.translate(valid) if valid else [],
+                "result": "",
+                }
         if len(candidates) == 1 and len(code) == self.MaxCodes:
             return {"snippet": "", "candidates": [], "result": candidates[0]}
         if selector and self.selectors[selector] < len(candidates):  # returns chosen
