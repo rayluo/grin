@@ -1,9 +1,3 @@
-# We might switch to python:3-alpine, which would hopefully result in smaller image.
-##FROM python:3-alpine
-##RUN apk update && apk add \
-##    # python3-tkinter
-##    tk
-##    # font-isas-misc
 FROM python:3-slim
 
 RUN apt update && apt install -y \
@@ -12,7 +6,7 @@ RUN apt update && apt install -y \
     # Install one of the Chinese fonts from https://packages.debian.org/stable/fonts/
     fonts-arphic-ukai \
     \
-    && rm -rf /var/lib/apt/lists/*
+    apt clean && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp
 RUN pip install -r /tmp/requirements.txt

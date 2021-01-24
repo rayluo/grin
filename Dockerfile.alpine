@@ -1,0 +1,28 @@
+FROM python:3-alpine
+RUN apk update && apk add \
+    tk \
+    # Somehow this is necessary for an alpine image to actually show tkinter gui
+    xvfb
+
+## Tried font-isas-misc (which results in 80MB image) and ttf-dejavu (101MB).
+## They all display Chinese in uneven width.
+## The WenQuanYi font provides decent Chinese fonts (also 101MB).
+RUN apk add wqy-zenhei --update-cache --repository http://nl.alpinelinux.org/alpine/edge/testing --allow-untrusted
+
+## The following line does not make tangible difference - if at all - in image size
+#RUN rm -rf /var/cache/apk/*
+
+COPY requirements.txt /tmp
+RUN pip install -r /tmp/requirements.txt
+
+## Decides to keep this image as a stable tkinter+ChineseFont+dependency environment
+##      rather than shipping the volatile main app inside this image
+# COPY . /home
+# WORKDIR /home
+# ENTRYPOINT my_main_program
+
+## Use the accompanied docker_run.sh to specify latest application at run-time.
+
+# This is the default tkinter demo
+CMD ["python", "-m", "tkinter"]
+
