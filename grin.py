@@ -17,7 +17,7 @@ class GreenInput(object):
         具体的输入法编码规则，是由被加载的符合特定规则的码表文件
     指定。所以理论上只要能配合适当的码表，就可以用本输入法软件按
     任意输入法的编码方式进入文字输入。码表格式请参考本软件附带的
-    若干个示范*.txt格式文件。
+    若干个示范*.w2k格式文件。
         需要提供或交流输入法或码表的人士可联系 rayluo.mba@gmail.com ,
     主题请写明《关于GRIN的码表》。
 
@@ -26,7 +26,7 @@ class GreenInput(object):
     MaxCodes = 4  # None means unlimited
     alphabet = set('abcdefghijklmnopqrstuvwxyz')
     wildcard = '?'
-    codename = "Test Input"
+    codename = "Built-in Input Method for test"
     CodeTable = {  # Words in Unicode. Example: { 'ni':[u'你', u'妮'], ... }
         'zero': ['零'],  # Use this to test auto-select when max-code rached with single candidate
         'one':  ['壹', '一'],
@@ -44,6 +44,9 @@ class GreenInput(object):
     def __init__(self, filename=None):
         if filename:
             self.load_table(filename)
+        self._post_init()
+
+    def _post_init(self):
         self.selectors = {  # E.g. {"1": 0, "2": 1, ..., " ": 0}
             s: i % 10
             for i, s in enumerate(
@@ -157,71 +160,34 @@ class GreenInput(object):
         lists = [self.CodeTable[key] for key in keys[:limit]][:limit]
         return reduce(lambda x,y:x+y, lists, [])[:limit]  # Flatten them
 
-    def _decode(self, x, charset):
-        try: return unicode(x, charset)
-        except: return x
+    def load_table(self, filename, encoding="utf-8"):
+        """Load code table in Windows 2000 format and change current instance.
 
-    def load_table(self, filename):
-        import ConfigParser
-        codeFile = ConfigParser.SafeConfigParser()
-        default_charset = "utf16"
-        codeFile.readfp(DecodeW2kCodeFile(
-            open(filename,'rU').read(),
-            encoding=default_charset,  # NOTE:
-                # Historically, UTF16 is good enough to read metadata from GB18030 input,
-                # but UTF16BOM is also observed to incorrectly convert "不" to "上".
-                # Ideally we should know encoding beforehand and they better be UTF8.
-            ))
-        self.MaxCodes = codeFile.getint('Description', 'MaxCodes')
-        self.alphabet = codeFile.get('Description', 'UsedCodes')
-        self.wildcard = codeFile.get('Description', 'WildChar')
-        try: charset = codeFile.get('Description', 'Charset')
-        except: charset = default_charset
-        try: self.codename = self._decode(codeFile.get('Description', 'Name'), charset)
-        except: self.codename = filename
+        >>> grin = GreenInput()
+        >>> grin.load_table("capnum.w2k")
+        >>> grin.codename
+        '大写数字'
+        """
+        from configparser import ConfigParser
+        import string
+        import time
+        if not filename:
+            return
+        t = time.time()
+        definition = ConfigParser(allow_no_value=True, comment_prefixes=('/', '#'))
+        definition.read(filename, encoding=encoding)
+        self.MaxCodes = definition.getint('Description', 'MaxCodes')
+        self.alphabet = set(definition.get('Description', 'UsedCodes'))
+        self.wildcard = definition.get('Description', 'WildChar')
+        self.codename = definition.get('Description', 'Name', fallback=filename)
         self.CodeTable = {}
-        for hz, code in codeFile.items('Text'):
-          # TODO: Show a stat for duplicate percentage for the given code table?
-          if self.CodeTable.get(code) is None: self.CodeTable[code]=[]
-          self.CodeTable[code].append(self._decode(hz, charset))
-        self.postInitInput()
-        cPickle.dump(
-            (self.codename, self.MaxCodes, self.wildcard, self.alphabet, self.selectors, self.CodeTable),
-            open('cache.pkl','w'))
-
-
-class DecodeW2kCodeFile:  # It maps W2kCodeFile format to ConfigParser format
-  def __init__(self, alldata, encoding='utf8'):
-    try: alldata = unicode(alldata, encoding)  # W2k Code file needs Unicode-decode
-    except: logger.exception("Ignore %s decode error", encoding)
-    self.lines = alldata.splitlines(True)
-    self.offset = 0
-
-  def readline(self, size=None):  # This implementation ignores size parameter
-    import string
-    while self.offset < len(self.lines):
-      line = self.lines[self.offset]
-      self.offset = self.offset + 1
-      #print 'Got:', line
-      if line.startswith('//'): # comments
-        continue
-      elif '[' in line or '=' in line:  # valid for ConfigParser
-        return line
-      elif line.strip()=='':  # Skip blank line
-        continue
-      else:
-        hz = line.rstrip( string.printable )
-        code = line[len(hz):]
-        if hz and code:
-          return hz + '=' + code  # This maps to a key-value pair.
-            # Cannot use "code=hz", b/c it won't handle one-code-multiple-word (重码)
-            # By go with "hz=code", we choose to not support one-word-multiple-code
-            # (i.e.  目前这里不支持码表内出现同一个汉字（词）有不同的输入编码)
-        else:
-            logger.warn(
-                'Unrecognised code start (%s/%s) at line #%d: %s',
-                hz, code, self.offset, line)
-    else: return ''
+        for key, value in definition.items('Text'):
+            # TODO: Show a stat for duplicate percentage for the given code table?
+            hz = key.rstrip(string.printable)
+            code = key[len(hz):]
+            self.CodeTable.setdefault(code, []).append(hz)
+        self._post_init()
+        logger.debug("Initialized %s in %s seconds", self.codename, time.time() - t)
 
 
 if __name__ == "__main__":
