@@ -11,6 +11,7 @@ xhost local:root
 # NOTE: https://stackoverflow.com/a/65756710/728675
 docker run -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY \
     -v $PWD:/app -w /app \
+    --user $(id -u):$(id -g) \
     --rm \
     $IMAGE_NAME \
     python grin.py
