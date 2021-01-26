@@ -1,10 +1,95 @@
 # coding: utf-8
 import logging
-from functools import reduce
+import json
+#import pickle  # pickle requires a binary file, but Brython supports text only
+from collections import defaultdict
 
 
 __version__ = "2.0.0"
 logger = logging.getLogger(__name__)
+
+
+def tree():  # https://gist.github.com/hrldcpr/2012250
+    return defaultdict(tree)
+
+
+def locate(node, path, *, readonly=False):
+    """For given path (which is a sequence) and a starting node,
+    return its node (which can be an empty dict"""
+    for level in path:
+        if level not in node and readonly:  # This helps when node is a normal dict
+            return  # Gracefully downgrade
+        node = node[level]
+    return node
+
+
+def nodes(root):
+    """Return an iterator which yield each node, in Inorder traversal.
+    Path info would not be available, though."""
+    yield root
+    for k, v in root.items():
+        if isinstance(v, dict):  # So it supports both defaultdict and dict
+            for node in nodes(v):
+                yield node
+
+
+class Codes(object):
+    """Represent codes into tree for faster scan.
+
+    >>> codes = Codes({
+    ...     'ten':  ['foo', 'bar'],
+    ...     'two':  ['hello', 'world'],
+    ...     })
+    >>> snapshot = json.dumps(codes._root, sort_keys=True)
+    >>> snapshot
+    '{"t": {"e": {"n": {"": ["foo", "bar"]}}, "w": {"o": {"": ["hello", "world"]}}}}'
+
+    >>> codes.get("ten")
+    ['foo', 'bar']
+    >>> codes.get("te")
+    ['foo', 'bar']
+    >>> codes.get("t")
+    ['foo', 'bar', 'hello', 'world']
+    >>> codes.get("t", limit=3)
+    ['foo', 'bar', 'hello']
+    >>> codes.get("t", limit=1)
+    ['foo']
+
+    >>> codes2 = Codes()
+    >>> codes2._root = json.loads(snapshot)  # Side effect: it becomes a normal dict
+    >>> codes2.get("ten")
+    ['foo', 'bar']
+    >>> codes2.get("te")
+    ['foo', 'bar']
+    """
+    HZ = ""  # This will be used as a key to mean a code has corresponding hanzi
+            # We choose a string NOT conflict with input alphabet.
+            # Do not use None, because None can not be round-trip to/from json
+
+    def __init__(self, mappings=None):
+        self._root = tree()
+        for code, hz in (mappings or {}).items():
+            self.add(code, hz)
+
+    def add(self, path, values):
+        """Store leaf as {None: ["foo", "bar"]}"""
+        ## Brython 3.9.1 seems to not support setdefault(...)
+        #locate(self._root, path).setdefault(None, []).extend(values)
+        node = locate(self._root, path)
+        if self.HZ not in node:
+            node[self.HZ] = []
+        node[self.HZ].extend(values)
+
+    def get(self, path, *, limit=None):
+        limit = limit or 10
+        candidates = []
+        branch = locate(self._root, path, readonly=True)
+        for node in nodes(branch) if branch else []:
+            # The Inorder traversal of nodes() naturally favors short code
+            candidates.extend(node.get(self.HZ, []))
+            if len(candidates) >= limit:
+                break  # Early exit
+        return candidates[:limit]
 
 
 class GreenInput(object):
@@ -27,7 +112,7 @@ class GreenInput(object):
     alphabet = set('abcdefghijklmnopqrstuvwxyz')
     wildcard = '?'
     codename = "Built-in Input Method for test"
-    CodeTable = {  # Words in Unicode. Example: { 'ni':[u'你', u'妮'], ... }
+    codes = Codes({  # Words in Unicode. Example: { 'ni':[u'你', u'妮'], ... }
         'zero': ['零'],  # Use this to test auto-select when max-code rached with single candidate
         'one':  ['壹', '一'],
         'two':  ['贰', '二'],
@@ -39,7 +124,7 @@ class GreenInput(object):
         'eigh': ['捌', '八'],
         'nine': ['玖', '九'],
         'ten':  ['拾', '十'],
-        }
+        })
 
     def __init__(self, filename=None):
         if filename:
@@ -154,11 +239,7 @@ class GreenInput(object):
         return {"snippet": code, "candidates": candidates, "result": ""}
 
     def translate(self, code, limit=10):  # @return a list containing candidates
-        keys = [  # Find all candidates first, before subsequent filtering
-            key for key in self.CodeTable.keys() if key.startswith(code)]
-        keys.sort()  # Simple code shall be showed at the top (a.k.a. 简码先见)
-        lists = [self.CodeTable[key] for key in keys[:limit]][:limit]
-        return reduce(lambda x,y:x+y, lists, [])[:limit]  # Flatten them
+        return self.codes.get(code, limit=limit)
 
     def load_table(self, filename, encoding="utf-8"):
         """Load code table in Windows 2000 format and change current instance.
@@ -167,27 +248,63 @@ class GreenInput(object):
         >>> grin.load_table("capnum.w2k")
         >>> grin.codename
         '大写数字'
+        >>> grin.codes.get("wor")
+        ['词组']
+
+        The loaded grin2 contains a normal dict, rather than a defaultdict.
+        So, the following test case would work only because we have a readonly mode.
+        >>> grin2 = GreenInput()
+        >>> grin2.load_json("capnum.w2k.grn")
+        >>> grin2.codename
+        '大写数字'
+        >>> grin2.codes.get("wor")
+        ['词组']
+        >>> grin2.codes.get("none")
+        []
         """
         from configparser import ConfigParser
         import string
-        import time
         if not filename:
             return
-        t = time.time()
         definition = ConfigParser(allow_no_value=True, comment_prefixes=('/', '#'))
-        definition.read(filename, encoding=encoding)
+        logger.debug("Initializing %s", filename)
+        definition.read(filename, encoding=encoding)  # Very slow on Brython
+        logger.debug("Read entire file %s", filename)
         self.MaxCodes = definition.getint('Description', 'MaxCodes')
         self.alphabet = set(definition.get('Description', 'UsedCodes'))
         self.wildcard = definition.get('Description', 'WildChar')
         self.codename = definition.get('Description', 'Name', fallback=filename)
-        self.CodeTable = {}
+        self.codes = Codes()
         for key, value in definition.items('Text'):
             # TODO: Show a stat for duplicate percentage for the given code table?
             hz = key.rstrip(string.printable)
             code = key[len(hz):]
-            self.CodeTable.setdefault(code, []).append(hz)
+            self.codes.add(code, [hz])
         self._post_init()
-        logger.debug("Initialized %s in %s seconds", self.codename, time.time() - t)
+        logger.debug("Initialized %s", filename)
+        self.save_json(filename + ".grn")
+
+    def save_json(self, filename):
+        with open(filename, "w") as f:
+            json.dump({
+                "MaxCodes": self.MaxCodes,
+                "alphabet": list(self.alphabet),
+                "selectors": self.selectors,
+                "wildcard": self.wildcard,
+                "codename": self.codename,
+                "codes": self.codes._root,  # Note: It downgrades to a normal dict
+                }, f, separators=(',', ':'))  # Compact output
+
+    def load_json(self, filename):
+        with open(filename) as f:
+            cached = json.load(f)
+            self.MaxCodes = cached["MaxCodes"]
+            self.alphabet = set(cached["alphabet"])
+            self.selectors = cached["selectors"]
+            self.wildcard = cached["wildcard"]
+            self.codename = cached["codename"]
+            self.codes = Codes()
+            self.codes._root = cached["codes"]  # Note: This is a normal dict
 
 
 if __name__ == "__main__":
