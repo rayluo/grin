@@ -125,6 +125,7 @@ class GreenInput(object):
         'nine': ['玖', '九'],
         'ten':  ['拾', '十'],
         })
+    cache = {}
 
     def __init__(self, filename=None):
         if filename:
@@ -239,6 +240,8 @@ class GreenInput(object):
         return {"snippet": code, "candidates": candidates, "result": ""}
 
     def translate(self, code, limit=10):  # @return a list containing candidates
+        if code in self.cache:  # self.cache is expected to be pre-populated
+            return self.cache[code]
         return self.codes.get(code, limit=limit)
 
     def load_table(self, filename, encoding="utf-8"):
@@ -282,6 +285,8 @@ class GreenInput(object):
             self.codes.add(code, [hz])
         self._post_init()
         logger.debug("Initialized %s", filename)
+        self.cache = {  # Prepopulate the slowest yet most frequent snippets
+            c: self.translate(c) for c in self.alphabet}
         self.save_json(filename + ".grn")
 
     def save_json(self, filename):
@@ -293,6 +298,7 @@ class GreenInput(object):
                 "wildcard": self.wildcard,
                 "codename": self.codename,
                 "codes": self.codes._root,  # Note: It downgrades to a normal dict
+                "cache": self.cache,
                 }, f, separators=(',', ':'))  # Compact output
 
     def load_json(self, filename):
@@ -305,6 +311,7 @@ class GreenInput(object):
             self.codename = cached["codename"]
             self.codes = Codes()
             self.codes._root = cached["codes"]  # Note: This is a normal dict
+            self.cache = cached["cache"]
 
 
 if __name__ == "__main__":
