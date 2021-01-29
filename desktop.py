@@ -8,6 +8,10 @@ import PySimpleGUI as sg
 from grin import GreenInput, __version__
 
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s %(message)s',
+    )
 logger = logging.getLogger(__name__)
 grin = GreenInput()
 callbacks = {  # event: callback
