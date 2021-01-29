@@ -73,12 +73,7 @@ class Codes(object):
 
     def add(self, path, values):
         """Store leaf as {None: ["foo", "bar"]}"""
-        ## Brython 3.9.1 seems to not support setdefault(...)
-        #locate(self._root, path).setdefault(None, []).extend(values)
-        node = locate(self._root, path)
-        if self.HZ not in node:
-            node[self.HZ] = []
-        node[self.HZ].extend(values)
+        locate(self._root, path).setdefault(self.HZ, []).extend(values)
 
     def get(self, path, *, limit=None):
         limit = limit or 10
