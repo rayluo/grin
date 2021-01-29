@@ -26,6 +26,7 @@ with closing(sg.Window("%s %s" % (GreenInput.__name__, __version__), [
                 ])],
             [sg.Text("Input your code here")],
             [sg.Input(key="CODE", size=(20, 1))],
+            [sg.Text("Choose candidates by numbers:")],  # Some might use !@#$...
             [sg.Multiline(key="CANDIDATES", size=(40, 10))],
             [sg.Text("_" * window_width)],
             [sg.Text("Result (Select all, and press CTRL+C to copy, then CTRL+V to elsewhere):")],
@@ -51,6 +52,6 @@ with closing(sg.Window("%s %s" % (GreenInput.__name__, __version__), [
         result = grin.input(values["CODE"])
         window["CODE"].update(result["snippet"])
         window["CANDIDATES"].update("\n".join(
-            "{}: {}".format(i+1, c) for i, c in enumerate(result["candidates"])))
+            "{}: {}".format((i+1) % 10, c) for i, c in enumerate(result["candidates"])))
         window["OUTPUT"].update(values["OUTPUT"].strip() + result["result"])
 
