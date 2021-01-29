@@ -1,0 +1,2 @@
+# We used Input element's SetFocus() method, which was available since 3.14
+pysimplegui>=3.14,<5

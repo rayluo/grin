@@ -1,23 +1,15 @@
 # coding: utf-8
 import logging
-from Tkinter import *
-from Tix import *
-import icelib.gui
+from functools import reduce
 
+
+__version__ = "2.0.0"
 logger = logging.getLogger(__name__)
 
-class GreenInput(icelib.gui.Application):
-  MaxCodes = 0  # 0 means unlimited
-  UsedCodes='abcdefghijklmnopqrstuvwxyz'
-  WildChar ='?'
-  ChooseCodes=None  # It will be automatically initialized
-  CodeTable = {}  # Words in Unicode. Example: { 'ni':[u'你', u'妮'], ... }
 
-  def aboutMsg(self): return '''GRIN(GReen INput), V1.1, rayluo.mba@gmail.com, build@date 2020-1-7
-    '''
-    # V1.1 Refactor so that it can run on Python 2.7
+class GreenInput(object):
+    """GRIN(GReen INput)
 
-  def help(self): return unicode('''
         这个绿色输入法软件在使用上并不如主流的各种输入法软件方便，
     它甚至需要你在结果窗口自己把内容粘贴到其它目标软件之中。
         它主要用于在网吧之类的不允许使用者随意安装软件的场合使用。
@@ -25,260 +17,180 @@ class GreenInput(icelib.gui.Application):
         具体的输入法编码规则，是由被加载的符合特定规则的码表文件
     指定。所以理论上只要能配合适当的码表，就可以用本输入法软件按
     任意输入法的编码方式进入文字输入。码表格式请参考本软件附带的
-    若干个示范*.txt格式文件。
+    若干个示范*.w2k格式文件。
         需要提供或交流输入法或码表的人士可联系 rayluo.mba@gmail.com ,
     主题请写明《关于GRIN的码表》。
-    ''', 'utf-8')
 
-  def __init__(self, master):
-    icelib.gui.Application.__init__(self, master)
-    self.initInput()  # Calls this first, and then postInitInput() will setup ChooseCodes
-    self.postInitInput()
+    rayluo.mba@gmail.com 2021
+    """
+    MaxCodes = 4  # None means unlimited
+    alphabet = set('abcdefghijklmnopqrstuvwxyz')
+    wildcard = '?'
+    codename = "Built-in Input Method for test"
+    CodeTable = {  # Words in Unicode. Example: { 'ni':[u'你', u'妮'], ... }
+        'zero': ['零'],  # Use this to test auto-select when max-code rached with single candidate
+        'one':  ['壹', '一'],
+        'two':  ['贰', '二'],
+        'thre': ['叁', '三'],
+        'four': ['肆', '四'],
+        'five': ['伍', '五'],
+        'six':  ['陆', '六'],
+        'seve': ['柒', '七'],
+        'eigh': ['捌', '八'],
+        'nine': ['玖', '九'],
+        'ten':  ['拾', '十'],
+        }
 
-  def initInput(self):
-    pass
+    def __init__(self, filename=None):
+        if filename:
+            self.load_table(filename)
+        self._post_init()
 
-  def postInitInput(self):
-    self.ChooseCodes = '1' in self.UsedCodes and '!@#$%^&*() ' or '1234567890 ' # Ends with space
-    assert self.WildChar not in self.UsedCodes, 'WildChar overlaps some UsedCodes'
-    assert not [ c for c in self.ChooseCodes if c in self.UsedCodes ], 'ChooseCodes overlaps some UsedCodes'
-    self.master.title(self.about())
+    def _post_init(self):
+        self.selectors = {  # E.g. {"1": 0, "2": 1, ..., " ": 0}
+            s: i % 10
+            for i, s in enumerate(
+                # Length is 11, ends with space
+                '!@#$%^&*() ' if '1' in self.alphabet else '1234567890 '
+            )}
+        if self.wildcard in self.alphabet:
+            raise ValueError('wildcard must not overlap some alphabet')
+        if set(self.selectors) & self.alphabet:
+            raise ValueError('selectors must not overlap some alphabet')
 
-  def createMainWidget(self):
-    parent = self
+    def input(self, snippet):
+        """Given the snippet which contains several codes plus one optional index,
+        return {"snippet": normalized_snippet, "candidates": [], "result": "..."}
 
-    Label(parent, text="Input your code here:", anchor=W).pack(side=TOP, fill=X)
-    self.code = Entry(parent)
-    self.code.pack(fill=X)
-    self.code.focus_set()
-    self.code.bind('<KeyRelease>', self.inputCode)
+        This function does NOT maintain an internal buffer.
+        On the contrary, it expects accumulated input from an external input field.
 
-    Label(parent, text="", anchor=W).pack(side=TOP, fill=X) # Separator
+        >>> result = GreenInput().input("t")
+        >>> result["snippet"]
+        't'
+        >>> set(result["candidates"]) == {'贰', '二', '叁', '三', '拾', '十'}
+        True
+        >>> result["result"]
+        ''
 
-    Label(parent, text="Candidates:", anchor=W).pack(side=TOP, fill=X)
-    self.candidates = Listbox(parent)
-    self.candidates.pack(expand=1, fill=BOTH)
-    try: self.candidates['font'] = self.candidates['font'].split()[0] + ' 18'
-    except: pass # Happens in python2.5
+        >>> result = GreenInput().input("tw")
+        >>> result["snippet"]
+        'tw'
+        >>> set(result["candidates"]) == {'贰', '二'}
+        True
+        >>> result["result"]
+        ''
 
-    Label(parent, text="", anchor=W).pack(side=TOP, fill=X) # Separator
+        >>> result = GreenInput().input("twx")  # Invalid input should be discarded
+        >>> result["snippet"]
+        'tw'
+        >>> set(result["candidates"]) == {'贰', '二'}
+        True
+        >>> result["result"]
+        ''
 
-    Label(parent, text="Result (Select all, and press CTRL+C to copy, then CTRL+V to other software):", anchor=W).pack(side=TOP, fill=X)
-    self.output = Text(parent, width=60, height=4)
-    self.output.pack(fill=BOTH, expand=1)
-    try: self.output['font'] = self.output['font'].split()[0] + ' 18'
-    except: pass # Happens in python2.5
+        >>> GreenInput().input("tw1") == {
+        ...     "snippet": "", "candidates": [], "result": '贰'}
+        True
 
-    Button(parent, text='Reset', anchor=W, command=self.reset).pack(side=BOTTOM)
+        >>> GreenInput().input("tw ") == {
+        ...     "snippet": "", "candidates": [], "result": '贰'}
+        True
 
-  def reset(self):
-    self.output.delete('0.0', END)
-    self.candidates.delete(0, END)
-    self.code.delete(0, END)
+        >>> GreenInput().input("tw2") == {
+        ...     "snippet": "", "candidates": [], "result": '二'}
+        True
 
-  def dropLastKey(self):
-    self.code.delete(len(self.code.get())-1)  # Delete the last input character
+        >>> GreenInput().input("2") == {
+        ...     "snippet": "", "candidates": [], "result": '2'}
+        True
 
-  def inputCode(self, event=None):
-    logger.debug("INPUT: char='%s', keycode=%d, code.get()='%s'",
-        event.char,  # In Python 2.4/2.5 era, input of "!@#$..." would
-                    # result in a char different than chr(event.keycode).lower()
-                    # In Python 2.7, this seems to be always an empty string
-        event.keycode,  # Something relevant to the key's physical position on keyboard
-        self.code.get(),  # This seems to contain all inputed keys, tested in Python 2.7 on Linux
-            # Known issue: Tkinter widget is too slow to recognize a quick "1234"
-            #   as four separated keys, it would return one 4-letter string.
-        )
-    inputKey = self.code.get()[-1] if self.code.get() else None
-    if not inputKey:  # This happens when the input area was cleaned by backspace
-        self.candidates.delete(0, END)
-        return
-    if inputKey not in self.UsedCodes + self.ChooseCodes:
-      return self.dropLastKey()
-    if inputKey in self.ChooseCodes:
-      order = self.ChooseCodes.index(inputKey) % 10 # So '1' and ' ' both point to the first candidate
-      self.dropLastKey()
-      result = self.__translate( self.code.get() )
-      position = min(len(result)-1, order)
-      logger.debug('FOUND: %s[%d] = %s', result, position, result[position] if result else '')
-      self.output.insert(
-            INSERT,
-            result[position] if result
-                else inputKey,  # This would allow inputting numeric keys
-            )
-      # TODO: Support chaining input (a.k.a. 支持联想)
-      self.candidates.delete(0, END)
-      self.code.delete(0, END)
-      return
-    if inputKey in self.UsedCodes:
-      result = self.__translate( self.code.get() )
-      if len(result)==0:  # No matching
-        return self.dropLastKey()
-      elif len(result)==1 and self.isEndOfInput( self.code.get() ):
-        self.output.insert( INSERT, result[0] )  # END means last, '0.0' is beginning，INSERT is current
-        self.candidates.delete(0, END)
-        self.code.delete(0, END)
-      else:
-        self.candidates.delete(0, END)
-        # TODO: Support paging when there are more than 10 same-code candidates?
-        for offset in range( 0, min(10, len(result)) ):
-          self.candidates.insert(END, "%d:%s" % (offset+1, result[offset]) )
-      return
+        >>> GreenInput().input("") == {
+        ...     "snippet": "", "candidates": [], "result": ''}
+        True
 
-  def isEndOfInput(self, code):
-    return code.endswith(' ') or len(code) >= self.MaxCodes
+        >>> result = GreenInput().input("four")
+        >>> result["snippet"]
+        'four'
+        >>> set(result["candidates"]) == {'肆', '四'}
+        True
+        >>> result["result"]
+        ''
 
-  def __translate(self, code):
-      return self.translate(code.strip()) if code else []
+        >>> GreenInput().input("zero") == {
+        ...     "snippet": "", "candidates": [], "result": '零'}
+        True
 
-  def translate(self, code, limit=10):  # @return a list containing candidates
-    keys = [  # Find all candidates first, before subsequent filtering
-        key for key in self.CodeTable.keys() if key.startswith(code)]
-    keys.sort()  # Simple code shall be showed at the top (a.k.a. 简码先见)
-    lists = [self.CodeTable[key] for key in keys[:limit]][:limit]
-    return reduce(lambda x,y:x+y, lists, [])[:limit]  # Flatten them
+        >>> GreenInput().input("") == {
+        ...     "snippet": "", "candidates": [], "result": ''}
+        True
+        """
+        logger.debug("INPUT: snippet='%s'", snippet)
+        snippet = "".join(filter(
+            lambda c: c in self.alphabet or c in self.selectors, snippet))
+        if not snippet:  # This happens when the input area was cleaned by backspace
+            return {"snippet": snippet, "candidates": [], "result": ""}
+        code = "".join(filter(lambda c: c in self.alphabet, snippet))
+        selector = snippet[-1] if snippet and snippet[-1] in self.selectors else None
+        if not code:  # Then pass through the selector
+            return {"snippet": "", "candidates": [], "result": selector or ""}
+        assert code
+        candidates = self.translate(code)
+        if not candidates:  # Encounter invalid input
+            valid = code[:-1]  # Discard last code because it doesn't match anything
+            return {
+                "snippet": valid,
+                "candidates": self.translate(valid) if valid else [],
+                "result": "",
+                }
+        if len(candidates) == 1 and len(code) == self.MaxCodes:
+            return {"snippet": "", "candidates": [], "result": candidates[0]}
+        if selector and self.selectors[selector] < len(candidates):  # returns chosen
+            return {
+                "snippet": "",
+                "candidates": [],
+                "result": candidates[self.selectors[selector]],
+                }
+        return {"snippet": code, "candidates": candidates, "result": ""}
 
-  def guiOutput(self, actionName, fileName, result):
-    self.outputWindow.append( "%s %s: %s" % (actionName, fileName, result and result or 'successful') )
+    def translate(self, code, limit=10):  # @return a list containing candidates
+        keys = [  # Find all candidates first, before subsequent filtering
+            key for key in self.CodeTable.keys() if key.startswith(code)]
+        keys.sort()  # Simple code shall be showed at the top (a.k.a. 简码先见)
+        lists = [self.CodeTable[key] for key in keys[:limit]][:limit]
+        return reduce(lambda x,y:x+y, lists, [])[:limit]  # Flatten them
+
+    def load_table(self, filename, encoding="utf-8"):
+        """Load code table in Windows 2000 format and change current instance.
+
+        >>> grin = GreenInput()
+        >>> grin.load_table("capnum.w2k")
+        >>> grin.codename
+        '大写数字'
+        """
+        from configparser import ConfigParser
+        import string
+        import time
+        if not filename:
+            return
+        t = time.time()
+        definition = ConfigParser(allow_no_value=True, comment_prefixes=('/', '#'))
+        definition.read(filename, encoding=encoding)
+        self.MaxCodes = definition.getint('Description', 'MaxCodes')
+        self.alphabet = set(definition.get('Description', 'UsedCodes'))
+        self.wildcard = definition.get('Description', 'WildChar')
+        self.codename = definition.get('Description', 'Name', fallback=filename)
+        self.CodeTable = {}
+        for key, value in definition.items('Text'):
+            # TODO: Show a stat for duplicate percentage for the given code table?
+            hz = key.rstrip(string.printable)
+            code = key[len(hz):]
+            self.CodeTable.setdefault(code, []).append(hz)
+        self._post_init()
+        logger.debug("Initialized %s in %s seconds", self.codename, time.time() - t)
 
 
-class InputTest(GreenInput):
-  MaxCodes=4
-  CodeTable={
-    'zero': [u'零'],  # Use this to test auto-select when max-code rached with single candidate
-    'one':  [u'壹', u'一'],
-    'two':  [u'贰', u'二'],
-    'thre': [u'叁', u'三'],
-    'four': [u'肆', u'四'],
-    'five': [u'伍', u'五'],
-    'six':  [u'陆', u'六'],
-    'seve': [u'柒', u'七'],
-    'eigh': [u'捌', u'八'],
-    'nine': [u'玖', u'九'],
-    'ten':  [u'拾', u'十'],
-    }
-  def aboutMsg(self): return '''InputTest, iceberg@21cn.com, build@date 2006-10-15 11:37
-    '''
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
 
-
-class DecodeW2kCodeFile:  # It maps W2kCodeFile format to ConfigParser format
-  def __init__(self, alldata, encoding='utf8'):
-    try: alldata = unicode(alldata, encoding)  # W2k Code file needs Unicode-decode
-    except: logger.exception("Ignore %s decode error", encoding)
-    self.lines = alldata.splitlines(True)
-    self.offset = 0
-
-  def readline(self, size=None):  # This implementation ignores size parameter
-    import string
-    while self.offset < len(self.lines):
-      line = self.lines[self.offset]
-      self.offset = self.offset + 1
-      #print 'Got:', line
-      if line.startswith('//'): # comments
-        continue
-      elif '[' in line or '=' in line:  # valid for ConfigParser
-        return line
-      elif line.strip()=='':  # Skip blank line
-        continue
-      else:
-        hz = line.rstrip( string.printable )
-        code = line[len(hz):]
-        if hz and code:
-          return hz + '=' + code  # This maps to a key-value pair.
-            # Cannot use "code=hz", b/c it won't handle one-code-multiple-word (重码)
-            # By go with "hz=code", we choose to not support one-word-multiple-code
-            # (i.e.  目前这里不支持码表内出现同一个汉字（词）有不同的输入编码)
-        else:
-            logger.warn(
-                'Unrecognised code start (%s/%s) at line #%d: %s',
-                hz, code, self.offset, line)
-    else: return ''
-
-import cPickle
-class OpenInput(GreenInput):
-  CodeName = None
-
-  def aboutMsg(self): return '''GReen INput(%s), V1.1, rayluo.mba@gmail.com, build@date 2020-1-8
-    ''' % self.CodeName
-        # V1.1 Replace undocumented(?) and now broken ExFileSelectDialog()
-
-  def menuSpecs(self):
-    return [  # Each item should be a (label_underscope, callback|subMenuList, [sequence])
-      ("_File",
-        [ ('_Load...', self.loadCodeTable),
-            # '<Control-o>'),  # Somehow, hotkey here would cause program abort
-          ('', None),
-          ('E_xit', self.quit, '<Alt-x>'),
-        ] ),
-      ("_Help", [
-        ("_Help", lambda: self.genOutputWindow( self.help() ).dummy() ),  # OutputWindow(self, self.help()).dummy()  ),
-        ("_About", lambda: self.createPopupDialog(self.about()) ),
-        ('', None),
-        ('_Debug', self.debug, '<Alt-d>'),
-        ] ),
-      ]
-
-  def initInput(self):
-    GreenInput.initInput(self)
-    import os
-    if os.path.exists('cache.pkl'):
-      logger.info("Reload from cache...")
-      self.CodeName, self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes, self.CodeTable = cPickle.load(
-        open('cache.pkl') )
-    logger.info("MaxCodes=%s, WildChar=%s, UsedCodes=%s, ChooseCodes=%s",
-        self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes)
-
-  def _decode(self, x, charset):
-    try: return unicode(x, charset)
-    except: return x
-
-  def loadCodeTable(self):
-    import ConfigParser
-    from tkFileDialog import askopenfilename
-        # The previous ExFileSelectDialog() from Python 2.4/2.5 no longer works
-    filename = askopenfilename(filetypes=[
-        ("Input Code files", (".txt",)),
-        ("All files", ".*"),
-        ])
-    if not filename:
-        return
-    codeFile = ConfigParser.SafeConfigParser()
-    default_charset = "utf16"
-    codeFile.readfp(DecodeW2kCodeFile(
-        open(filename,'rU').read(),
-        encoding=default_charset,  # NOTE:
-            # Historically, UTF16 is good enough to read metadata from GB18030 input,
-            # but UTF16BOM is also observed to incorrectly convert "不" to "上".
-            # Ideally we should know encoding beforehand and they better be UTF8.
-        ))
-    self.MaxCodes = codeFile.getint('Description', 'MaxCodes')
-    self.UsedCodes = codeFile.get('Description', 'UsedCodes')
-    self.WildChar = codeFile.get('Description', 'WildChar')
-    try: charset = codeFile.get('Description', 'Charset')
-    except: charset = default_charset
-    try: self.CodeName = self._decode(codeFile.get('Description', 'Name'), charset)
-    except: self.CodeName = filename
-    self.CodeTable = {}
-    for hz, code in codeFile.items('Text'):
-      # TODO: Show a stat for duplicate percentage for the given code table?
-      if self.CodeTable.get(code) is None: self.CodeTable[code]=[]
-      self.CodeTable[code].append(self._decode(hz, charset))
-    self.postInitInput()
-    cPickle.dump(
-        (self.CodeName, self.MaxCodes, self.WildChar, self.UsedCodes, self.ChooseCodes, self.CodeTable),
-        open('cache.pkl','w'))
-
-class InputCapitalNumber(OpenInput):
-  CodeName = 'capnum.txt'
-
-class InputBxm(OpenInput):
-  CodeName = 'winbxm.txt'
-
-if __name__ == '__main__':
-  logging.basicConfig(level=logging.DEBUG)
-  #icelib.gui.Application.run()  # This can test GUI with icon
-  #GreenInput.run()  # This starts a scaffold GRIN instance
-  #InputTest.run()  # This starts the built-in demo
-  OpenInput.run()
-  #InputBxm.run()
-  #InputCapitalNumber.run()

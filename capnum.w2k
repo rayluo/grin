@@ -1,0 +1,33 @@
+//     此文件的编排形式是按照简体中文版Windows 95的自定义编码字典的格式来写。
+//     只要删除开头的若干注释行，就可直接用Windows 95中的输入法生成器来
+// 编译生成用户输入法xxx.IME和xxx.MB。编译的详细步骤请参考Windows 95的
+// “帮助/简介/中文输入法”。
+//     在W2k下，应该不必删除注释行也可使用。
+//     By Iceberg, 2006-10-15 11:55
+
+//     另，经测试，unicode()会把“不”字改成“上”字。怎么办？ :-(
+//      Turns out it would happen when this file is in UTF16-BOM encoding.
+//      It would be fine if using UTF8.
+//      By RayLuo, 2020
+
+[Description]
+Name=大写数字
+MaxCodes=4
+UsedCodes=abcdefghijklmnopqrstuvwxyz
+WildChar=?
+[Text]
+壹one
+一one
+贰two
+二two
+叁thre
+肆four
+伍five
+陆six
+柒seve
+捌eigh
+玖nine
+拾ten
+零zero
+不no
+上up

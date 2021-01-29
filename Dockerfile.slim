@@ -1,0 +1,24 @@
+FROM python:3-slim
+
+RUN apt update && apt install -y \
+    python3-tk \
+    \
+    # Install one of the Chinese fonts from https://packages.debian.org/stable/fonts/
+    fonts-arphic-ukai \
+    \
+    apt clean && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /tmp
+RUN pip install -r /tmp/requirements.txt
+
+## Decides to keep this image as a stable tkinter+ChineseFont+dependency environment
+##      rather than shipping the volatile main app inside this image
+# COPY . /home
+# WORKDIR /home
+# ENTRYPOINT my_main_program
+
+## Use the accompanied docker_run.sh to specify latest application at run-time.
+
+# This is the default tkinter demo
+CMD ["python", "-m", "tkinter"]
+
