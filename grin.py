@@ -253,11 +253,12 @@ class GreenInput(object):
         '大写数字'
         >>> grin.codes.get("wor")
         ['词组']
+        >>> grin.save_json("capnum.test")  # Use a non-grn name, to avoid polluting publish
 
         The loaded grin2 contains a normal dict, rather than a defaultdict.
         So, the following test case would work only because we have a readonly mode.
         >>> grin2 = GreenInput()
-        >>> grin2.load_json("capnum.w2k.grn")
+        >>> grin2.load_json("capnum.test")
         >>> grin2.codename
         '大写数字'
         >>> grin2.codes.get("wor")
@@ -287,19 +288,22 @@ class GreenInput(object):
         logger.debug("Initialized %s", filename)
         self.cache = {  # Prepopulate the slowest yet most frequent snippets
             c: self.translate(c) for c in self.alphabet}
-        self.save_json(filename + ".grn")
 
     def save_json(self, filename):
         with open(filename, "w") as f:
             json.dump({
-                "MaxCodes": self.MaxCodes,
-                "alphabet": list(self.alphabet),
-                "selectors": self.selectors,
-                "wildcard": self.wildcard,
-                "codename": self.codename,
-                "codes": self.codes._root,  # Note: It downgrades to a normal dict
-                "cache": self.cache,
-                }, f, separators=(',', ':'))  # Compact output
+                    "MaxCodes": self.MaxCodes,
+                    "alphabet": list(self.alphabet),
+                    "selectors": self.selectors,
+                    "wildcard": self.wildcard,
+                    "codename": self.codename,
+                    "codes": self.codes._root,  # Note: It downgrades to a normal dict
+                    "cache": self.cache,
+                },
+                f,
+                separators=(',', ':'),  # Compact output
+                sort_keys=True,  # It would probably help produce stable output
+                )
 
     def load_json(self, filename):
         with open(filename) as f:
@@ -317,4 +321,10 @@ class GreenInput(object):
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
+    print("Doctest passed")
+    import sys
+    if len(sys.argv) < 2:
+        sys.exit("Usage: %s ime_name.w2k [ime_name.w2k.grn]" % sys.argv[0])
+    GreenInput(sys.argv[1]).save_json(
+        sys.argv[2] if len(sys.argv) >= 3 else sys.argv[1] + ".grn")
 
