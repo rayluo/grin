@@ -6,7 +6,7 @@ RUN apt update && apt install -y \
     # Install one of the Chinese fonts from https://packages.debian.org/stable/fonts/
     fonts-arphic-ukai \
     \
-    apt clean && rm -rf /var/lib/apt/lists/*
+    && apt clean && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp
 RUN pip install -r /tmp/requirements.txt
