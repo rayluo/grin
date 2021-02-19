@@ -1,12 +1,12 @@
 # coding: utf-8
-import logging
+#import logging  # It has lots dependency, thus slower than most other modules.
+    # Avoid it. See also https://github.com/brython-dev/brython/issues/1607
 import json
 #import pickle  # pickle requires a binary file, but Brython supports text only
 from collections import defaultdict
 
 
 __version__ = "2.0.0"
-logger = logging.getLogger(__name__)
 
 
 def tree():  # https://gist.github.com/hrldcpr/2012250
@@ -211,7 +211,6 @@ class GreenInput(object):
         ...     "snippet": "", "candidates": [], "result": ''}
         True
         """
-        logger.debug("INPUT: snippet='%s'", snippet)
         snippet = "".join(filter(
             lambda c: c in self.alphabet or c in self.selectors, snippet))
         if not snippet:  # This happens when the input area was cleaned by backspace
@@ -271,9 +270,7 @@ class GreenInput(object):
         if not filename:
             return
         definition = ConfigParser(allow_no_value=True, comment_prefixes=('/', '#'))
-        logger.debug("Initializing %s", filename)
         definition.read(filename, encoding=encoding)  # Very slow on Brython
-        logger.debug("Read entire file %s", filename)
         self.MaxCodes = definition.getint('Description', 'MaxCodes')
         self.alphabet = set(definition.get('Description', 'UsedCodes'))
         self.wildcard = definition.get('Description', 'WildChar')
@@ -285,7 +282,6 @@ class GreenInput(object):
             code = key[len(hz):]
             self.codes.add(code, [hz])
         self._post_init()
-        logger.debug("Initialized %s", filename)
         self.cache = {  # Prepopulate the slowest yet most frequent snippets
             c: self.translate(c) for c in self.alphabet}
 
