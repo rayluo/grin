@@ -1,14 +1,20 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
+
     <title>Green Input</title>
     <link href="style.css" rel="stylesheet" type="text/css" />
   </head>
-  <body onload="brython()">
-    <div id="loading">
-      Loading ... Please wait.
+  <body onload="brython()" class="container">
+    <div id="loading"><!-- If combined with its child div, the hiding won't work -->
+      <div class="d-flex justify-content-center"><!-- Learned from https://getbootstrap.com/docs/4.0/utilities/flex/ -->
+      <!-- Loading ... Please wait. -->
+
 <!-- Free loading image from https://loading.io/ -->
 <div class="inner" style="width: 200px; height: 200px;"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="margin:auto;background:#fff;display:block;" width="200px" height="200px" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid">
 <g transform="translate(50 50)">
@@ -24,12 +30,15 @@
 </g>
 </svg></div>
 
+      </div>
     </div>
+
     <div id="main" style="display:none">
-      <input type="text" id="code"></input>
+      <input type="text" id="code" class="form-control"></input>
       <pre id="candidates"></pre>
-      <textarea id="output"></textarea>
+      <textarea id="output" class="form-control" rows=10></textarea>
     </div>
+
 
 <!-- This part is only needed when debugging in raw Android browser.
 <script src="https://code.hnldesign.nl/hnl.mobileConsole.1.3.js"></script>
@@ -56,6 +65,7 @@
       document["loading"].style.display = "none"
       document["main"].style.display = ""
     </script>
+
   </body>
 </html>
 
