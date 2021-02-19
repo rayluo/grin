@@ -29,7 +29,7 @@
 Name=表形词组3126
 MaxCodes=4
 MaxElement=1
-UsedCodes=12345abcdefghijklmnopqrstuvwxyz
+UsedCodes=abcdefghijklmnopqrstuvwxyz
 WildChar=?
 NumRules=3
 [Rule]
