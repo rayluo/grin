@@ -5,7 +5,7 @@ from grin import GreenInput, __version__
 
 
 grin = GreenInput()
-grin.load_json("winbxm.w2k.grn")
+grin.load_json("winbxm3126.w2k.grn")
 
 @bind("#code", "keyup")
 def code_changed(ev):
