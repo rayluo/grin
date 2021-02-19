@@ -289,7 +289,7 @@ class GreenInput(object):
         with open(filename, "w") as f:
             json.dump({
                     "MaxCodes": self.MaxCodes,
-                    "alphabet": list(self.alphabet),
+                    "alphabet": sorted(list(self.alphabet)),  # stable output
                     "selectors": self.selectors,
                     "wildcard": self.wildcard,
                     "codename": self.codename,
