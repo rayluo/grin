@@ -1,0 +1,39 @@
+# This workflow will publish each commit on "web" branch to TARGET_BRANCH
+
+name: Publish Github pages
+
+env:
+  TARGET_BRANCH: gh-pages
+
+on:
+  push:
+    branches: [ web ]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - uses: actions/checkout@v2
+
+    - name: Build IMEs
+      run: for f in *.w2k; do python3 grin.py $f; done
+
+    - name: Push workdir to TARGET_BRANCH
+      run: |
+        # The following 2 lines are not really necessary, as long as you do not push current branch.
+        # But we still do that here, just to be conceptually correct.
+        git branch -f $TARGET_BRANCH HEAD
+        git checkout $TARGET_BRANCH
+
+        # The commit and push happen to work without authentication
+        # https://docs.github.com/en/actions/reference/authentication-in-a-workflow
+        git config user.name "The Bot"
+        git config user.email "thebot@users.noreply.github.com"
+        git add -A
+        git commit -m "Automated publish"
+
+        # Explicitly defining target, so that it would work even when target does not yet exist
+        git push -f origin HEAD:$TARGET_BRANCH
+
